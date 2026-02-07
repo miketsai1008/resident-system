@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>住戶資料管理 (傳賀社區)</title>
+    <!-- Vue.js 3 -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.3.4/dist/vue.global.prod.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div id="app">
+        <div :class="currentView === 'admin-dashboard' ? 'container-fluid' : 'container'">
+
+            <!-- HEADER -->
+            <header style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
+                <h1 style="margin: 0;">住戶資料管理 (傳賀社區)</h1>
+                <div>
+                    <button v-if="currentView !== 'admin-login' && !isAdmin" @click="setView('admin-login')"
+                        class="btn btn-secondary" style="font-size: 0.8rem;">管理員登入</button>
+                    <button v-if="currentView !== 'admin-dashboard' && isAdmin" @click="setView('admin-dashboard')"
+                        class="btn btn-secondary" style="font-size: 0.8rem;">回到管理後台</button>
+                    <button v-if="currentView !== 'resident-form'" @click="setView('resident-form')"
+                        class="btn btn-secondary">回首頁</button>
+                </div>
+            </header>
+
+            <!-- VIEW: RESIDENT FORM -->
+            <div v-if="currentView === 'resident-form'" class="card">
+                <h2>住戶資料填寫</h2>
+                <p class="alert alert-info" style="background: #e0f2fe; color: #0369a1;">
+                    請輸入您的戶號，系統將自動判斷是新增還是更新資料。
+                </p>
+
+                <form @submit.prevent="submitResidentForm">
+                    <div class="form-group">
+                        <label>戶號 (必填) <span style="color:red">*</span></label>
+                        <input type="text" v-model="form.UnitNumber" placeholder="例如: 110-01F" required>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>緊急聯絡人姓名 (必填) <span style="color:red">*</span></label>
+                            <input type="text" v-model="form.ContactName" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>緊急聯絡電話 (必填) <span style="color:red">*</span></label>
+                            <input type="tel" v-model="form.ContactPhone" pattern="[0-9\-]*" placeholder="09xx-xxx-xxx"
+                                required>
+                        </div>
+                    </div>
+
+                    <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid #e5e7eb;">
+
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" v-model="form.IsRenter" style="width: auto; margin-right: 0.5rem;">
+                            緊急連絡人非屋主 (Ex: 租客)
+                        </label>
+                    </div>
+
+                    <div v-if="form.IsRenter"
+                        style="background: #f9fafb; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
+                        <div class="form-group">
+                            <label>屋主姓名</label>
+                            <input type="text" v-model="form.OwnerName">
+                        </div>
+                        <div class="form-group">
+                            <label>屋主聯絡電話</label>
+                            <input type="tel" v-model="form.OwnerPhone">
+                        </div>
+                    </div>
+
+                    <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid #e5e7eb;">
+
+                    <h3>車輛資訊</h3>
+
+                    <!-- Car Spot 1 -->
+                    <div class="vehicle-group">
+                        <h4>汽車位 1</h4>
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label>車位號碼</label>
+                                <input type="text" v-model="form.CarSpot1_Num" placeholder="例如: B1-01"
+                                    pattern="[A-Z0-9]{2}-[0-9]{1,3}" maxlength="6">
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" v-model="form.CarSpot1_IsRented">
+                                    此車位出租
+                                </label>
+                                <input v-if="form.CarSpot1_IsRented" type="text" v-model="form.CarSpot1_RenterUnit"
+                                    placeholder="出租戶號 (ex: 112-08F)" :required="form.CarSpot1_IsRented">
+                            </div>
+                        </div>
+                        <!-- 車位出租時隱藏車牌 -->
+                        <div class="grid-2" v-if="!form.CarSpot1_IsRented">
+                            <div class="form-group">
+                                <label>車牌號碼 1</label>
+                                <input type="text" v-model="form.CarSpot1_Plate1" placeholder="例如: ABC-1234"
+                                    maxlength="10">
+                            </div>
+                            <div class="form-group">
+                                <label>車牌號碼 2</label>
+                                <input type="text" v-model="form.CarSpot1_Plate2" placeholder="例如: XYZ-5678"
+                                    maxlength="10">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Car Spot 2 -->
+                    <div class="vehicle-group">
+                        <h4>汽車位 2</h4>
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label>車位號碼</label>
+                                <input type="text" v-model="form.CarSpot2_Num" placeholder="例如: B1-02"
+                                    pattern="[A-Z0-9]{2}-[0-9]{1,3}" maxlength="6">
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" v-model="form.CarSpot2_IsRented">
+                                    此車位出租
+                                </label>
+                                <input v-if="form.CarSpot2_IsRented" type="text" v-model="form.CarSpot2_RenterUnit"
+                                    placeholder="出租戶號 (ex: 110-01F)" :required="form.CarSpot2_IsRented">
+                            </div>
+                        </div>
+                        <!-- 車位出租時隱藏車牌 -->
+                        <div class="grid-2" v-if="!form.CarSpot2_IsRented">
+                            <div class="form-group">
+                                <label>車牌號碼 1</label>
+                                <input type="text" v-model="form.CarSpot2_Plate1" placeholder="例如: ABC-1234"
+                                    maxlength="10">
+                            </div>
+                            <div class="form-group">
+                                <label>車牌號碼 2</label>
+                                <input type="text" v-model="form.CarSpot2_Plate2" placeholder="例如: XYZ-5678"
+                                    maxlength="10">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Moto Spots 1-3 -->
+                    <div v-for="i in 3" :key="'moto'+i" class="vehicle-group">
+                        <h4>機車位 {{ i }}</h4>
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label>車位號碼</label>
+                                <input type="text" v-model="form['MotoSpot'+i+'_Num']" placeholder="例如: 01 或 A01"
+                                    maxlength="3">
+                            </div>
+                            <div class="form-group">
+                                <label>車牌號碼</label>
+                                <input type="text" v-model="form['MotoSpot'+i+'_Plate']" placeholder="例如: NNN-1234"
+                                    maxlength="10">
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid #e5e7eb;">
+
+                    <div v-if="submitStatus.message"
+                        :class="['alert', submitStatus.success ? 'alert-success' : 'alert-error']">
+                        {{ submitStatus.message }}
+                    </div>
+
+                    <button type="submit" class="btn" :disabled="loading">
+                        <span v-if="loading" class="spinner"></span>
+                        {{ loading ? '資料傳送中...' : '提交資料' }}
+                    </button>
+                </form>
+            </div>
+
+            <!-- VIEW: ADMIN LOGIN -->
+            <div v-if="currentView === 'admin-login'" class="card" style="max-width: 400px; margin: 0 auto;">
+                <h2>管理員登入</h2>
+                <form @submit.prevent="adminLogin">
+                    <div class="form-group">
+                        <label>帳號</label>
+                        <input type="text" v-model="loginForm.username" required>
+                    </div>
+                    <div class="form-group">
+                        <label>密碼</label>
+                        <input type="password" v-model="loginForm.password" required>
+                    </div>
+
+                    <div v-if="loginStatus.message" class="alert alert-error">
+                        {{ loginStatus.message }}
+                    </div>
+
+                    <button type="submit" class="btn" style="width: 100%;" :disabled="loading">
+                        <span v-if="loading" class="spinner"></span>
+                        {{ loading ? '登入中...' : '登入' }}
+                    </button>
+                </form>
+            </div>
+
+            <!-- VIEW: ADMIN DASHBOARD -->
+            <div v-if="currentView === 'admin-dashboard'" class="card"
+                style="width: 100%; border: none; box-shadow: none; background: transparent;">
+                <div
+                    style="background: white; padding: 1.5rem; border-radius: 0.5rem; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h2>後臺管理系統 <span style="color: gray; font-size: 0.5em;">(Headless Mode)</span></h2>
+                        <div>
+                            <button @click="openChangePasswordModal" class="btn btn-secondary"
+                                style="margin-right: 0.5rem;">修改密碼</button>
+                            <button @click="logout" class="btn btn-secondary">登出</button>
+                        </div>
+                    </div>
+
+                    <!-- Tabs -->
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem; border-bottom: 2px solid #e5e7eb;">
+                        <button @click="currentAdminTab = 'residents'"
+                            :style="{ padding: '0.5rem 1rem', border: 'none', background: 'none', cursor: 'pointer', borderBottom: currentAdminTab === 'residents' ? '3px solid #2563eb' : 'none', fontWeight: currentAdminTab === 'residents' ? 'bold' : 'normal', color: currentAdminTab === 'residents' ? '#2563eb' : '#6b7280' }">
+                            住戶資料管理
+                        </button>
+                        <button v-if="adminRole === 'RW'" @click="currentAdminTab = 'admins'"
+                            :style="{ padding: '0.5rem 1rem', border: 'none', background: 'none', cursor: 'pointer', borderBottom: currentAdminTab === 'admins' ? '3px solid #2563eb' : 'none', fontWeight: currentAdminTab === 'admins' ? 'bold' : 'normal', color: currentAdminTab === 'admins' ? '#2563eb' : '#6b7280' }">
+                            管理員設定
+                        </button>
+                    </div>
+
+                    <!-- TAB: RESIDENTS -->
+                    <div v-if="currentAdminTab === 'residents'">
+                        <!-- QUICK FILTERS -->
+                        <div style="margin-bottom: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                            <!-- "無" -> All -->
+                            <button @click="setQuickFilter('All')" class="btn"
+                                :style="{ background: currentFilter === 'All' ? '#6b7280' : '#f3f4f6', color: currentFilter === 'All' ? 'white' : '#374151', border: '1px solid #d1d5db' }">
+                                無
+                            </button>
+                            <!-- Filter Buttons -->
+                            <button v-for="prefix in ['110', '112', '116', '118', '120', '122', '126']" :key="prefix"
+                                @click="setQuickFilter(prefix)" class="btn"
+                                :style="{ background: currentFilter === prefix ? '#2563eb' : '#eff6ff', color: currentFilter === prefix ? 'white' : '#1e40af', border: '1px solid #bfdbfe' }">
+                                {{ prefix }}
+                                <span v-if="prefix==='110'">(A1)</span>
+                                <span v-if="prefix==='112'">(A6)</span>
+                                <span v-if="prefix==='116'">(A5)</span>
+                                <span v-if="prefix==='118'">(A3)</span>
+                                <span v-if="prefix==='120'">(A2)</span>
+                                <span v-if="prefix==='122'">(A1)</span>
+                                <span v-if="prefix==='126'">(A8)</span>
+                            </button>
+                        </div>
+
+                        <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem; align-items: center;">
+                            <input type="text" v-model="searchQuery" placeholder="搜尋住戶 (戶號/姓名/電話/車牌)..."
+                                style="max-width: 300px;">
+                            <button @click="loadResidents" class="btn">重新整理</button>
+                            <button @click="clearFilters" class="btn btn-secondary"
+                                style="border: 1px solid #d1d5db;">清除篩選</button>
+                            <span style="margin-left: auto; font-weight: bold; color: #4b5563;">
+                                共 {{ sortedResidents.length }} 筆資料
+                            </span>
+                        </div>
+
+                        <div class="admin-table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th @click="setSort('UnitNumber')" style="cursor: pointer; user-select: none;">
+                                            戶號
+                                            <span v-if="sortKey === 'UnitNumber'">{{ sortOrder === 1 ? '↑' : '↓'
+                                                }}</span>
+                                        </th>
+                                        <th>聯絡資訊</th>
+                                        <th>身分</th>
+                                        <th>屋主資訊</th>
+                                        <th @click="setSort('Car')"
+                                            style="min-width: 180px; cursor: pointer; user-select: none;">
+                                            汽車位
+                                            <span v-if="sortKey === 'Car'">{{ sortOrder === 1 ? '↑' : '↓' }}</span>
+                                        </th>
+                                        <th @click="setSort('Moto')"
+                                            style="min-width: 150px; cursor: pointer; user-select: none;">
+                                            機車位
+                                            <span v-if="sortKey === 'Moto'">{{ sortOrder === 1 ? '↑' : '↓' }}</span>
+                                        </th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-if="loading">
+                                        <td colspan="7" style="text-align: center; padding: 2rem; color: #666;">
+                                            <span class="spinner"></span> 資料載入中...
+                                        </td>
+                                    </tr>
+                                    <tr v-for="r in paginatedResidents" :key="r.UnitNumber">
+                                        <td style="font-weight: bold;">{{ r.UnitNumber }}</td>
+                                        <td>
+                                            <span style="font-weight: 500;">{{ r.ContactName }}</span>
+                                            <span style="color: #666; font-size: 0.9rem; margin-left: 0.5rem;">
+                                                {{ formatPhone(r.ContactPhone) }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span v-if="r.IsRenter === 'Yes'"
+                                                style="color: #d97706; font-weight: bold; background: #fef3c7; padding: 2px 6px; border-radius: 4px;">租客</span>
+                                            <span v-else
+                                                style="color: #059669; background: #d1fae5; padding: 2px 6px; border-radius: 4px;">屋主</span>
+                                        </td>
+                                        <td style="font-size: 0.9rem;">
+                                            <div v-if="r.IsRenter === 'Yes' && r.OwnerName">
+                                                <div><strong>{{ r.OwnerName }}</strong></div>
+                                                <div style="color: #666;">{{ r.OwnerPhone }}</div>
+                                            </div>
+                                            <span v-else style="color: #999;">-</span>
+                                        </td>
+                                        <!-- 汽車位 COL -->
+                                        <td style="font-size: 0.9rem; vertical-align: top;">
+                                            <div v-if="!r.CarSpot1_Num && !r.CarSpot2_Num" style="color: #ccc;">-</div>
+
+                                            <div v-if="r.CarSpot1_Num"
+                                                style="margin-bottom: 0.5rem; display: flex; align-items: baseline; flex-wrap: wrap;">
+                                                <span style="font-weight: 500; margin-right: 0.5rem;">汽車位1</span>
+                                                <span
+                                                    style="background:#d1fae5; color:#059669; padding:2px 6px; border-radius:4px; font-weight:bold; font-size: 0.85rem; margin-right: 0.5rem;">
+                                                    {{ r.CarSpot1_Num }}
+                                                </span>
+                                                <span v-if="r.CarSpot1_IsRented === 'Yes'" style="color: #d97706;">
+                                                    (租 {{ r.CarSpot1_RenterUnit }})
+                                                </span>
+                                                <span v-else style="color: #4b5563;">
+                                                    <span v-if="r.CarSpot1_Plate1">{{ r.CarSpot1_Plate1 }}</span>
+                                                    <span v-if="r.CarSpot1_Plate1 && r.CarSpot1_Plate2"> / </span>
+                                                    <span v-if="r.CarSpot1_Plate2">{{ r.CarSpot1_Plate2 }}</span>
+                                                </span>
+                                            </div>
+
+                                            <div v-if="r.CarSpot2_Num"
+                                                style="margin-bottom: 0.5rem; display: flex; align-items: baseline; flex-wrap: wrap;">
+                                                <span style="font-weight: 500; margin-right: 0.5rem;">汽車位2</span>
+                                                <span
+                                                    style="background:#d1fae5; color:#059669; padding:2px 6px; border-radius:4px; font-weight:bold; font-size: 0.85rem; margin-right: 0.5rem;">
+                                                    {{ r.CarSpot2_Num }}
+                                                </span>
+                                                <span v-if="r.CarSpot2_IsRented === 'Yes'" style="color: #d97706;">
+                                                    (租 {{ r.CarSpot2_RenterUnit }})
+                                                </span>
+                                                <span v-else style="color: #4b5563;">
+                                                    <span v-if="r.CarSpot2_Plate1">{{ r.CarSpot2_Plate1 }}</span>
+                                                    <span v-if="r.CarSpot2_Plate1 && r.CarSpot2_Plate2"> / </span>
+                                                    <span v-if="r.CarSpot2_Plate2">{{ r.CarSpot2_Plate2 }}</span>
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <!-- 機車位 COL -->
+                                        <td style="font-size: 0.9rem; vertical-align: top;">
+                                            <div v-if="!r.MotoSpot1_Num && !r.MotoSpot2_Num && !r.MotoSpot3_Num"
+                                                style="color: #ccc;">-</div>
+
+                                            <div v-if="r.MotoSpot1_Num"
+                                                style="margin-bottom: 0.25rem; display: flex; align-items: baseline; flex-wrap: wrap;">
+                                                <span style="font-weight: 500; margin-right: 0.5rem;">機車位1</span>
+                                                <span
+                                                    style="background:#d1fae5; color:#059669; padding:2px 6px; border-radius:4px; font-weight:bold; font-size: 0.85rem; margin-right: 0.5rem;">
+                                                    {{ r.MotoSpot1_Num }}
+                                                </span>
+                                                <span v-if="r.MotoSpot1_IsRented === 'Yes'" style="color: #d97706;">
+                                                    (租 {{ r.MotoSpot1_RenterUnit }})
+                                                </span>
+                                                <span v-else style="color: #4b5563;">
+                                                    {{ r.MotoSpot1_Plate }}
+                                                </span>
+                                            </div>
+
+                                            <div v-if="r.MotoSpot2_Num"
+                                                style="margin-bottom: 0.25rem; display: flex; align-items: baseline; flex-wrap: wrap;">
+                                                <span style="font-weight: 500; margin-right: 0.5rem;">機車位2</span>
+                                                <span
+                                                    style="background:#d1fae5; color:#059669; padding:2px 6px; border-radius:4px; font-weight:bold; font-size: 0.85rem; margin-right: 0.5rem;">
+                                                    {{ r.MotoSpot2_Num }}
+                                                </span>
+                                                <span v-if="r.MotoSpot2_IsRented === 'Yes'" style="color: #d97706;">
+                                                    (租 {{ r.MotoSpot2_RenterUnit }})
+                                                </span>
+                                                <span v-else style="color: #4b5563;">
+                                                    {{ r.MotoSpot2_Plate }}
+                                                </span>
+                                            </div>
+
+                                            <div v-if="r.MotoSpot3_Num"
+                                                style="margin-bottom: 0.25rem; display: flex; align-items: baseline; flex-wrap: wrap;">
+                                                <span style="font-weight: 500; margin-right: 0.5rem;">機車位3</span>
+                                                <span
+                                                    style="background:#d1fae5; color:#059669; padding:2px 6px; border-radius:4px; font-weight:bold; font-size: 0.85rem; margin-right: 0.5rem;">
+                                                    {{ r.MotoSpot3_Num }}
+                                                </span>
+                                                <span v-if="r.MotoSpot3_IsRented === 'Yes'" style="color: #d97706;">
+                                                    (租 {{ r.MotoSpot3_RenterUnit }})
+                                                </span>
+                                                <span v-else style="color: #4b5563;">
+                                                    {{ r.MotoSpot3_Plate }}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <button v-if="adminRole === 'RW'" @click="deleteResident(r.UnitNumber)"
+                                                class="btn btn-danger"
+                                                style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">刪除</button>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="!loading && paginatedResidents.length === 0">
+                                        <td colspan="7" style="text-align: center; color: #666;">
+                                            {{ searchQuery ? '查無符合資料' : '尚無資料' }}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            <!-- PAGINATION CONTROLS -->
+                            <div v-if="totalPages > 1"
+                                style="display: flex; justify-content: center; align-items: center; gap: 1rem; padding: 1rem; background: #f9fafb; border-top: 1px solid #e5e7eb;">
+                                <button @click="currentPage--" :disabled="currentPage === 1"
+                                    class="btn btn-secondary">上一頁</button>
+                                <span>第 {{ currentPage }} 頁 / 共 {{ totalPages }} 頁</span>
+                                <button @click="currentPage++" :disabled="currentPage === totalPages"
+                                    class="btn btn-secondary">下一頁</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB: ADMINS -->
+                    <div v-if="currentAdminTab === 'admins'">
+                        <div style="margin-bottom: 1rem;">
+                            <button @click="showAddAdminModal = true" class="btn">新增管理員</button>
+                            <button @click="loadAdmins" class="btn btn-secondary"
+                                style="margin-left: 0.5rem;">重新整理</button>
+                        </div>
+
+                        <div class="admin-table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>管理員帳號</th>
+                                        <th>最後登入時間</th>
+                                        <th>權限</th>
+                                        <th>備註</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-if="adminsLoading">
+                                        <td colspan="5" style="text-align: center; padding: 2rem; color: #666;">
+                                            <span class="spinner"></span> 資料載入中...
+                                        </td>
+                                    </tr>
+                                    <tr v-for="admin in adminList" :key="admin.username">
+                                        <td>{{ admin.username }}</td>
+                                        <td>{{ admin.lastLogin }}</td>
+                                        <td>
+                                            <span v-if="admin.role === 'RW'" class="badge badge-success"
+                                                style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem;">讀寫
+                                                (RW)</span>
+                                            <span v-else class="badge badge-secondary"
+                                                style="background: #f3f4f6; color: #374151; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem;">唯讀
+                                                (RO)</span>
+                                        </td>
+                                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">
+                                            {{ admin.notes || '-' }}
+                                        </td>
+                                        <td>
+                                            <button @click="openResetPasswordModal(admin.username)"
+                                                class="btn btn-secondary"
+                                                style="padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.25rem;">重設密碼</button>
+                                            <button @click="openEditNotesModal(admin)" class="btn btn-secondary"
+                                                style="padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.25rem;">編輯備註</button>
+                                            <button @click="deleteAdmin(admin.username)" class="btn btn-danger"
+                                                style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">刪除</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: ADD ADMIN -->
+            <div v-if="showAddAdminModal"
+                style="position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000;">
+                <div class="card" style="width: 350px;">
+                    <h3>新增管理員</h3>
+                    <form @submit.prevent="createAdmin">
+                        <div class="form-group">
+                            <label>帳號</label>
+                            <input type="text" v-model="newAdminForm.username" required>
+                        </div>
+                        <div class="form-group">
+                            <label>密碼</label>
+                            <input type="password" v-model="newAdminForm.password" required>
+                        </div>
+                        <div class="form-group">
+                            <label>確認密碼</label>
+                            <input type="password" v-model="newAdminForm.confirmPassword" required>
+                        </div>
+                        <div class="form-group">
+                            <label>權限</label>
+                            <select v-model="newAdminForm.role"
+                                style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;">
+                                <option value="RW">讀寫 (RW)</option>
+                                <option value="RO">唯讀 (RO)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>備註（選填）</label>
+                            <input type="text" v-model="newAdminForm.notes" placeholder="例如：主要管理員、技術支援">
+                        </div>
+
+                        <div v-if="newAdminStatus.message"
+                            :class="['alert', newAdminStatus.success ? 'alert-success' : 'alert-error']">
+                            {{ newAdminStatus.message }}
+                        </div>
+
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button type="submit" class="btn">確認新增</button>
+                            <button type="button" @click="showAddAdminModal = false"
+                                class="btn btn-secondary">取消</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- MODAL: CHANGE PASSWORD -->
+            <div v-if="showPasswordModal"
+                style="position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center;">
+                <div class="card" style="width: 300px;">
+                    <h3>修改密碼</h3>
+                    <form @submit.prevent="changePassword">
+                        <div class="form-group">
+                            <label>舊密碼</label>
+                            <input type="password" v-model="pwdForm.oldPass" required>
+                        </div>
+                        <div class="form-group">
+                            <label>新密碼</label>
+                            <input type="password" v-model="pwdForm.newPass" required>
+                        </div>
+                        <div class="form-group">
+                            <label>確認新密碼</label>
+                            <input type="password" v-model="pwdForm.confirmNewPass" required>
+                        </div>
+
+                        <div v-if="pwdStatus.message"
+                            :class="['alert', pwdStatus.success ? 'alert-success' : 'alert-error']">
+                            {{ pwdStatus.message }}
+                        </div>
+
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button type="submit" class="btn">確認修改</button>
+                            <button type="button" @click="showPasswordModal = false"
+                                class="btn btn-secondary">取消</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- MODAL: RESET PASSWORD -->
+            <div v-if="showResetPasswordModal"
+                style="position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000;">
+                <div class="card" style="width: 350px;">
+                    <h3>重設管理員密碼</h3>
+                    <p style="color: #666; font-size: 0.9rem;">管理員: <strong>{{ resetPasswordForm.targetUsername
+                            }}</strong>
+                    </p>
+                    <form @submit.prevent="resetAdminPassword">
+                        <div class="form-group">
+                            <label>新密碼</label>
+                            <input type="password" v-model="resetPasswordForm.newPassword" required>
+                        </div>
+                        <div class="form-group">
+                            <label>確認新密碼</label>
+                            <input type="password" v-model="resetPasswordForm.confirmPassword" required>
+                        </div>
+
+                        <div v-if="resetPasswordStatus.message"
+                            :class="['alert', resetPasswordStatus.success ? 'alert-success' : 'alert-error']">
+                            {{ resetPasswordStatus.message }}
+                        </div>
+
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button type="submit" class="btn">確認重設</button>
+                            <button type="button" @click="showResetPasswordModal = false"
+                                class="btn btn-secondary">取消</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- MODAL: EDIT NOTES -->
+            <div v-if="showEditNotesModal"
+                style="position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000;">
+                <div class="card" style="width: 400px;">
+                    <h3>編輯管理員備註</h3>
+                    <p style="color: #666; font-size: 0.9rem;">管理員: <strong>{{ editNotesForm.targetUsername }}</strong>
+                    </p>
+                    <form @submit.prevent="updateAdminNotes">
+                        <div class="form-group">
+                            <label>備註</label>
+                            <textarea v-model="editNotesForm.notes" rows="4"
+                                style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-family: inherit;"
+                                placeholder="輸入管理員備註資訊..."></textarea>
+                        </div>
+
+                        <div v-if="editNotesStatus.message"
+                            :class="['alert', editNotesStatus.success ? 'alert-success' : 'alert-error']">
+                            {{ editNotesStatus.message }}
+                        </div>
+
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button type="submit" class="btn">確認更新</button>
+                            <button type="button" @click="showEditNotesModal = false"
+                                class="btn btn-secondary">取消</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Scripts -->
+        <script src="js/main.js"></script>
+</body>
+
+</html>
