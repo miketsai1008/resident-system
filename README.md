@@ -1,62 +1,71 @@
-# 住戶緊急聯絡資料管理系統 - 部署指南
+# 住戶資料管理系統 (Resident Data Management System)
 
-本系統使用 **Google Apps Script (GAS)** 與 **Google Sheets** 建置。請依照以下步驟部署。
+這是一個專為社區設計的住戶資料管理系統，採用 **前後端分離 (Headless Architecture)** 架構。前端介面託管於 GitHub Pages，後端邏輯與資料庫則由 Google Apps Script (GAS) 與 Google Sheets 驅動。
 
-## 步驟 1：建立 Google Sheet
-1.  登入您的 Google 帳號。
-2.  建立一個新的 Google Sheet (試算表)。
-3.  將試算表命名為 **「住戶資料管理系統」** (或您喜歡的名稱)。
+## 🚀 系統特色
 
-## 步驟 2：開啟 Apps Script 編輯器
-1.  在試算表中，點選上方選單的 **擴充功能 (Extensions)** > **Apps Script**。
-2.  這會開啟一個新的專案視窗。
+### 🏠 住戶端 (Frontend)
+- **資料填寫與更新**：住戶可輸入「戶號」登入，系統自動判斷是新增資料或更新現有資料。
+- **車位管理**：支援汽車位 (包含車牌、出租資訊) 與機車位的登記。
+- **響應式設計**：支援手機與電腦瀏覽，介面簡潔直覺。
 
-## 步驟 3：複製程式碼
-請將本資料夾中的檔案內容，對應複製到 Apps Script 編輯器中：
+### 🛡️ 管理端 (Admin Dashboard)
+- **安全登入**：管理員需輸入帳號密碼才能存取後台。
+- **權限分級 (RBAC)**：
+    - **讀寫權限 (RW)**：擁有完整功能，包含修改/刪除住戶資料、新增/管理管理員帳號。
+    - **唯讀權限 (RO)**：僅能查詢與瀏覽住戶資料，無法進行任何修改或刪除操作，亦無法進入管理員設定。
+- **資料檢索**：
+    - **快速搜尋**：支援搜尋戶號、姓名、電話、車牌號碼等多欄位。
+    - **進階排序**：可針對戶號、汽車位、機車位進行排序。
+    - **篩選功能**：可依棟別 (A/B) 快速篩選。
+- **即時狀態**：顯示資料載入中動畫與搜尋結果筆數。
 
-1.  **Code.gs**:
-    - 點選編輯器左側的 `程式碼.gs` (或 `Code.gs`)。
-    - 清空內容，將本專案 `resident-system-gas/Code.gs` 的內容完整貼上。
+## 🛠️ 技術架構
 
-2.  **index.html**:
-    - 點選左側 **+** 號 > **HTML**。
-    - 命名為 `index` (注意：不用打 .html，系統會自動加)。
-    - 將 `resident-system-gas/index.html` 內容貼上。
+- **前端 (Frontend)**：
+    - Vue.js 3 (Composition API)
+    - Vanilla CSS (RWD Design)
+    - GitHub Pages (Hosting)
+- **後端 (Backend)**：
+    - Google Apps Script (API Service)
+    - Google Sheets (Database)
 
-3.  **css.html**:
-    - 點選左側 **+** 號 > **HTML**。
-    - 命名為 `css`。
-    - 將 `resident-system-gas/css.html` 內容貼上。
+## 📂 專案結構
 
-4.  **js.html**:
-    - 點選左側 **+** 號 > **HTML**。
-    - 命名為 `js`。
-    - 將 `resident-system-gas/js.html` 內容貼上。
+```
+resident-system-gas/
+├── .github/workflows/   # GitHub Actions 自動部署設定
+├── css/                 # 樣式表 (style.css)
+├── js/                  # 前端邏輯 (main.js)
+├── index.html           # 主頁面
+├── Code.gs              # Google Apps Script 後端程式碼
+└── README.md            # 專案說明文件
+```
 
-## 步驟 4：初始化資料庫
-1.  在 Apps Script 編輯器上方的工具列，找到函式選單 (通常顯示 `myFunction`)。
-2.  選擇 **`initialSetup`**。
-3.  點選 **執行 (Run)**。
-4.  **核對權限**：系統會要求授權，請選擇您的帳號 -> 進階 (Advanced) -> 前往... (Go to...) -> 允許 (Allow)。
-5.  執行完畢後，回到您的 Google Sheet，您會看到下方多了 `Residents`, `Admins`, `Logs` 三個分頁，且標題欄位已建立。
+## ⚙️ 安裝與部署
 
-## 步驟 5：部署為 Web App
-1.  點選編輯器右上角的 **部署 (Deploy)** > **新增部署 (New deployment)**。
-2.  左側選擇 **網頁應用程式 (Web app)**。
-3.  設定內容：
-    - **說明 (Description)**: 住戶系統 v1
-    - **執行身分 (Execute as)**: **我 (Me)**  <-- 重要！
-    - **誰可以存取 (Who has access)**: **任何人 (Anyone)** <-- 重要！這樣住戶才不用登入 Google 即可填寫。
-4.  點選 **部署 (Deploy)**。
-5.  複製 **網頁應用程式網址 (Web app URL)**。此網址即為系統入口，請提供給住戶或管理者。
+### 1. 後端部署 (Google Apps Script)
+1. 將 `Code.gs` 的內容複製到 Google Apps Script 專案中。
+2. 首次執行需手動執行 `initialSetup` 函式以建立資料表 (Residents, Admins)。
+3. 點擊「部署」 -> 「新增部署」 -> 類型選擇「網頁應用程式」。
+4. 設定：
+    - **執行身分**：我 (Me)
+    - **誰可以存取**：任何人 (Anyone)
+5. 複製取得的 **Web App URL**。
 
-## 系統使用說明
+### 2. 前端設定
+1. 開啟 `js/main.js`。
+2. 將 `const API_URL` 的值替換為步驟 1 取得的 Web App URL。
 
-### 住戶端
-- 直接開啟網址，輸入戶號即可填寫或更新資料。
+### 3. 前端部署 (GitHub Pages)
+1. 將專案推送到 GitHub Repository (`master` 分支)。
+2. 本專案已設定 GitHub Actions (`.github/workflows/deploy.yml`)，推送後會自動部署至 GitHub Pages。
+3. 前往 GitHub Settings -> Pages 查看您的網站網址。
 
-### 管理者端
-- 在網址首頁點選「管理員登入」。
-- **預設帳號**: `ch-admin`
-- **預設密碼**: `ch-admin`
-- 登入後請務必點選「修改密碼」以確保安全。
+## 📝 使用說明
+
+- **預設管理員帳號**：
+    - 帳號：`admin`
+    - 密碼：`admin123`
+    - 權限：`RW` (讀寫)
+- **測試建議**：建議首次登入後立即建立新的管理員帳號，並修改預設密碼。
