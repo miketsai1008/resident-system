@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>住戶資料管理 (傳賀社區)</title>
+    <title>{{ appTitle }}</title>
     <!-- Vue.js 3 -->
     <script src="https://cdn.jsdelivr.net/npm/vue@3.3.4/dist/vue.global.prod.js"></script>
     <link rel="stylesheet" href="css/style.css">
@@ -16,7 +16,7 @@
 
             <!-- HEADER -->
             <header style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
-                <h1 style="margin: 0;">住戶資料管理 (傳賀社區)</h1>
+                <h1 style="margin: 0;">{{ appTitle }}</h1>
                 <div>
                     <button v-if="currentView !== 'admin-login' && !isAdmin" @click="setView('admin-login')"
                         class="btn btn-secondary" style="font-size: 0.8rem;">管理員登入</button>
@@ -188,6 +188,10 @@
             <div v-if="currentView === 'admin-login'" class="card" style="max-width: 400px; margin: 0 auto;">
                 <h2>管理員登入</h2>
                 <form @submit.prevent="adminLogin">
+                    <!-- Honeypot for bots -->
+                    <input type="text" v-model="loginForm.website" style="display:none;" autocomplete="off"
+                        tabindex="-1">
+
                     <div class="form-group">
                         <label>帳號</label>
                         <input type="text" v-model="loginForm.username" required>
@@ -211,26 +215,36 @@
             <!-- VIEW: ADMIN DASHBOARD -->
             <div v-if="currentView === 'admin-dashboard'" class="card"
                 style="width: 100%; border: none; box-shadow: none; background: transparent;">
+
+                <!-- Main Admin Container -->
                 <div
-                    style="background: white; padding: 1.5rem; border-radius: 0.5rem; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);">
+                    style="background: white; padding: 1.5rem; border-radius: 0.5rem; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
+
+                    <!-- Header Row -->
                     <div
-                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                        <h2>後臺管理系統 <span style="color: gray; font-size: 0.5em;">(Headless Mode)</span></h2>
-                        <div>
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 1rem;">
+                        <h2 style="margin: 0;">後臺管理系統 <span
+                                style="color: gray; font-size: 0.6em; font-weight: normal;">(Headless Mode)</span></h2>
+
+                        <div style="display: flex; align-items: center;">
+                            <span v-if="currentUser"
+                                style="margin-right: 1rem; font-weight: bold; color: #4b5563; background: #f3f4f6; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.9rem;">
+                                👤 {{ currentUser }}
+                            </span>
                             <button @click="openChangePasswordModal" class="btn btn-secondary"
-                                style="margin-right: 0.5rem;">修改密碼</button>
-                            <button @click="logout" class="btn btn-secondary">登出</button>
+                                style="font-size: 0.9rem; margin-right: 0.5rem;">修改密碼</button>
+                            <button @click="logout" class="btn btn-danger" style="font-size: 0.9rem;">登出</button>
                         </div>
                     </div>
 
                     <!-- Tabs -->
                     <div style="display: flex; gap: 1rem; margin-bottom: 1rem; border-bottom: 2px solid #e5e7eb;">
                         <button @click="currentAdminTab = 'residents'"
-                            :style="{ padding: '0.5rem 1rem', border: 'none', background: 'none', cursor: 'pointer', borderBottom: currentAdminTab === 'residents' ? '3px solid #2563eb' : 'none', fontWeight: currentAdminTab === 'residents' ? 'bold' : 'normal', color: currentAdminTab === 'residents' ? '#2563eb' : '#6b7280' }">
+                            :style="{ padding: '0.75rem 1.5rem', fontSize: '1.2rem', border: 'none', background: 'none', cursor: 'pointer', borderBottom: currentAdminTab === 'residents' ? '3px solid #2563eb' : 'none', fontWeight: currentAdminTab === 'residents' ? 'bold' : 'normal', color: currentAdminTab === 'residents' ? '#2563eb' : '#6b7280' }">
                             住戶資料管理
                         </button>
                         <button v-if="adminRole === 'RW'" @click="currentAdminTab = 'admins'"
-                            :style="{ padding: '0.5rem 1rem', border: 'none', background: 'none', cursor: 'pointer', borderBottom: currentAdminTab === 'admins' ? '3px solid #2563eb' : 'none', fontWeight: currentAdminTab === 'admins' ? 'bold' : 'normal', color: currentAdminTab === 'admins' ? '#2563eb' : '#6b7280' }">
+                            :style="{ padding: '0.75rem 1.5rem', fontSize: '1.2rem', border: 'none', background: 'none', cursor: 'pointer', borderBottom: currentAdminTab === 'admins' ? '3px solid #2563eb' : 'none', fontWeight: currentAdminTab === 'admins' ? 'bold' : 'normal', color: currentAdminTab === 'admins' ? '#2563eb' : '#6b7280' }">
                             管理員設定
                         </button>
                     </div>
@@ -448,20 +462,21 @@
                             <table>
                                 <thead>
                                     <tr>
-                                        <th>管理員帳號</th>
-                                        <th>最後登入時間</th>
+                                        <th>帳號</th>
+                                        <th>上次登入</th>
                                         <th>權限</th>
+                                        <th>狀態</th>
                                         <th>備註</th>
                                         <th>操作</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr v-if="adminsLoading">
-                                        <td colspan="5" style="text-align: center; padding: 2rem; color: #666;">
+                                        <td colspan="6" style="text-align: center; padding: 2rem; color: #666;">
                                             <span class="spinner"></span> 資料載入中...
                                         </td>
                                     </tr>
-                                    <tr v-for="admin in adminList" :key="admin.username">
+                                    <tr v-for="admin in adminList" :key="admin.username" v-if="!adminsLoading">
                                         <td>{{ admin.username }}</td>
                                         <td>{{ admin.lastLogin }}</td>
                                         <td>
@@ -472,16 +487,31 @@
                                                 style="background: #f3f4f6; color: #374151; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem;">唯讀
                                                 (RO)</span>
                                         </td>
+                                        <td>
+                                            <span v-if="admin.lockedUntil && new Date(admin.lockedUntil) > new Date()"
+                                                style="color:red; font-weight:bold; font-size: 0.9rem;">
+                                                🔒 已鎖定
+                                            </span>
+                                            <span v-else style="color:green; font-size: 0.9rem;">正常</span>
+                                        </td>
                                         <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">
                                             {{ admin.notes || '-' }}
                                         </td>
                                         <td>
-                                            <button @click="openResetPasswordModal(admin.username)"
+                                            <button
+                                                v-if="adminRole === 'RW' && admin.lockedUntil && new Date(admin.lockedUntil) > new Date()"
+                                                @click="unlockAdmin(admin.username)" class="btn btn-primary"
+                                                style="padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.25rem; background-color: #d97706;">解鎖</button>
+
+                                            <button v-if="adminRole === 'RW'"
+                                                @click="openResetPasswordModal(admin.username)"
                                                 class="btn btn-secondary"
                                                 style="padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.25rem;">重設密碼</button>
-                                            <button @click="openEditNotesModal(admin)" class="btn btn-secondary"
+                                            <button v-if="adminRole === 'RW'" @click="openEditNotesModal(admin)"
+                                                class="btn btn-secondary"
                                                 style="padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.25rem;">編輯備註</button>
-                                            <button @click="deleteAdmin(admin.username)" class="btn btn-danger"
+                                            <button v-if="adminRole === 'RW' && admin.username !== 'admin'"
+                                                @click="deleteAdmin(admin.username)" class="btn btn-danger"
                                                 style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">刪除</button>
                                         </td>
                                     </tr>

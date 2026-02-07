@@ -15,7 +15,10 @@ createApp({
         const isAdmin = ref(false);
         const adminRole = ref(''); // 'RW', 'RO'
         const sessionToken = ref('');
+        const currentUser = ref(''); // Logged in user
+
         const residents = ref([]);
+        const appTitle = ref('住戶資料管理'); // Dynamic Title
         const showPasswordModal = ref(false);
 
         // Admin Features State
@@ -114,9 +117,13 @@ createApp({
                 case 'login':
                     payload.username = args[0];
                     payload.password = args[1];
+                    payload.website = args[2]; // Honeypot
                     break;
                 case 'getAllResidents':
                     payload.token = args[0];
+                    break;
+                case 'getPublicSettings':
+                    payload.action = 'getPublicSettings';
                     break;
                 case 'submitResidentData':
                     payload = { ...payload, ...args[0], action: 'createResident' };
@@ -152,9 +159,14 @@ createApp({
                     payload.newPassword = args[2];
                     break;
                 case 'updateAdminNotes':
-                    payload.token = args[0];
-                    payload.targetUsername = args[1];
-                    payload.notes = args[2];
+                    payload.targetUsername = args[0];
+                    payload.notes = args[1];
+                    payload.token = args[2];
+                    break;
+                case 'unlockAdmin':
+                    payload.action = 'unlockAdmin';
+                    payload.targetUsername = args[0];
+                    payload.token = args[1];
                     break;
                 default:
                     console.warn('Unknown function call:', funcName);
@@ -310,13 +322,16 @@ createApp({
             loginStatus.message = '';
 
             try {
-                const response = await runGAS('login', loginForm.username, loginForm.password);
+                // Pass honeypot 'website'
+                const response = await runGAS('login', loginForm.username, loginForm.password, loginForm.website);
                 if (response.success) {
                     sessionToken.value = response.token;
                     isAdmin.value = true;
-                    adminRole.value = response.role || 'RW'; // Store Role
-                    currentView.value = 'admin-dashboard';
-                    currentAdminTab.value = 'residents'; // Reset Tab
+                    adminRole.value = response.role;
+                    currentUser.value = loginForm.username; // Set Current User
+                    // Store session (optional)
+                    // localStorage.setItem('resident_session', ...);
+                    currentView.value = 'admin-dashboard'; // Reset Tab
                     // Load data
                     loadResidents();
                     loadAdmins();
@@ -362,15 +377,19 @@ createApp({
         };
 
         const loadAdmins = async () => {
+            if (adminsLoading.value) return; // Prevent concurrent
             adminsLoading.value = true;
+            adminList.value = []; // Clear list to force "Loading" state visibility
+
             try {
                 const response = await runGAS('getAdminList', sessionToken.value);
-                // API Adapter mapped result.admins = result.data
-                if (response.success && response.admins) {
-                    adminList.value = response.admins;
+                if (response.success) {
+                    adminList.value = response.data;
+                } else {
+                    console.error(response.message);
                 }
             } catch (e) {
-                console.error('Load admins failed:', e);
+                console.error(e);
             } finally {
                 adminsLoading.value = false;
             }
@@ -471,6 +490,28 @@ createApp({
             }
         };
 
+        const unlockAdmin = async (targetUsername) => {
+            if (!confirm('確定要解鎖此帳號嗎？')) return;
+
+            loading.value = true;
+            try {
+                const response = await runGAS('unlockAdmin', targetUsername, sessionToken.value);
+
+                loading.value = false; // Stop action loading
+
+                if (response.success) {
+                    alert('帳號已解鎖');
+                    loadAdmins();
+                } else {
+                    alert('解鎖失敗: ' + response.message);
+                }
+            } catch (e) {
+                console.error(e);
+                alert('系統錯誤');
+                loading.value = false;
+            }
+        };
+
         const openResetPasswordModal = (username) => {
             resetPasswordForm.targetUsername = username;
             resetPasswordForm.newPassword = '';
@@ -512,7 +553,7 @@ createApp({
             loading.value = true;
             editNotesStatus.message = '';
             try {
-                const response = await runGAS('updateAdminNotes', sessionToken.value, editNotesForm.targetUsername, editNotesForm.notes);
+                const response = await runGAS('updateAdminNotes', editNotesForm.targetUsername, editNotesForm.notes, sessionToken.value);
                 editNotesStatus.success = response.success;
                 editNotesStatus.message = response.message;
                 if (response.success) {
@@ -530,6 +571,7 @@ createApp({
             sessionToken.value = '';
             isAdmin.value = false;
             adminRole.value = '';
+            currentUser.value = '';
             currentView.value = 'admin-login';
             residents.value = [];
             adminList.value = [];
@@ -540,8 +582,21 @@ createApp({
             runGAS('logout', sessionToken.value).catch(console.error);
         };
 
+        const fetchSettings = async () => {
+            try {
+                const response = await runGAS('getPublicSettings');
+                if (response.success && response.data) {
+                    appTitle.value = response.data.appTitle || '住戶資料管理';
+                    document.title = appTitle.value;
+                }
+            } catch (e) {
+                console.error('Fetch settings failed:', e);
+            }
+        };
+
         onMounted(() => {
             console.log('Vue App Mounted! API Mode.');
+            fetchSettings();
         });
 
         const formatPhone = (phone) => {
@@ -573,11 +628,15 @@ createApp({
             showResetPasswordModal, resetPasswordForm, resetPasswordStatus,
             openResetPasswordModal, resetAdminPassword,
             showEditNotesModal, editNotesForm, editNotesStatus,
-            openEditNotesModal, updateAdminNotes,
+            openEditNotesModal,
+            updateAdminNotes,
+            unlockAdmin, // Exposed
             formatPhone,
             currentFilter, setQuickFilter,
             currentPage, totalPages, clearFilters, setSort, paginatedResidents, sortKey, sortOrder,
-            sortedResidents
+            currentPage, totalPages, clearFilters, setSort, paginatedResidents, sortKey, sortOrder,
+            sortedResidents,
+            appTitle, currentUser // Exposed
         };
     }
 }).mount('#app');

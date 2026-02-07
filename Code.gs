@@ -47,10 +47,13 @@ function handleRequest(e) {
 
     // Public endpoints
     if (reqAction === 'login') {
-      result = login(data.username, data.password);
+      // 'website' is the honeypot field name
+      result = login(data.username, data.password, data.website);
     } else if (reqAction === 'createResident') {
       // Allow public submission
       result = createResident(data, null);
+    } else if (reqAction === 'getPublicSettings') {
+      result = getPublicSettings();
     } else {
       // Protected endpoints
       const token = data.token;
@@ -79,6 +82,9 @@ function handleRequest(e) {
           break;
         case 'deleteAdmin':
           result = deleteAdmin(data.targetUsername, token);
+          break;
+        case 'unlockAdmin':
+          result = unlockAdmin(data.targetUsername, token);
           break;
         case 'updateAdminNotes':
           result = updateAdminNotes(data, token);
@@ -115,26 +121,57 @@ function createJSONOutput(data) {
 
 // --- Auth & Session ---
 
-function login(username, password) {
+// --- Auth & Session ---
+
+// Constants moved to Settings Sheet
+
+function login(username, password, honeypot) {
+  if (honeypot) {
+      // Honeypot trapped a bot
+      return { status: 'error', message: '系統偵測到異常請求 (Bot detected)' };
+  }
+
+  // Load Security Settings
+  const maxAttempts = parseInt(getSetting('MaxLoginAttempts', '5', '最大登入錯誤次數')) || 5;
+  const lockoutMinutes = parseInt(getSetting('LockoutDurationMinutes', '15', '帳號鎖定時間(分)')) || 15;
+  const lockoutDurationMs = lockoutMinutes * 60 * 1000;
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(SHEET_ADMINS);
   
   if (!sheet) {
      sheet = ss.insertSheet(SHEET_ADMINS);
-     sheet.appendRow(['Username', 'Password', 'LastLogin', 'Notes', 'Role']);
-     sheet.appendRow(['admin', 'admin123', new Date(), 'Initial Admin', 'RW']);
+     sheet.appendRow(['Username', 'Password', 'LastLogin', 'Notes', 'Role', 'LoginAttempts', 'LockedUntil']);
+     sheet.appendRow(['admin', 'admin123', new Date(), 'Initial Admin', 'RW', 0, '']);
+  }
+  
+  // Auto-migration: Ensure columns exist
+  if (sheet.getLastColumn() < 7) {
+      sheet.getRange(1, 6).setValue('LoginAttempts');
+      sheet.getRange(1, 7).setValue('LockedUntil');
   }
   
   const data = sheet.getDataRange().getValues();
-  // Header: Username, Password, LastLogin, Notes, Role
   
   for (let i = 1; i < data.length; i++) {
-    // Column 0: Username, Column 1: Password
+    // Column 0: Username
     if (String(data[i][0]) === String(username)) {
+      
+      const rowIndex = i + 1;
+      
+      // 1. Check Lock Status
+      const lockedUntil = data[i][6]; // Column G
+      if (lockedUntil && new Date(lockedUntil).getTime() > new Date().getTime()) {
+          const remainingMinutes = Math.ceil((new Date(lockedUntil).getTime() - new Date().getTime()) / 60000);
+          return { status: 'error', message: `帳號已被鎖定，請於 ${remainingMinutes} 分鐘後再試，或請其他管理員解鎖。` };
+      }
+
+      // 2. Check Password
       if (String(data[i][1]) === String(password)) { 
+        // Success
         const token = Utilities.getUuid();
         const expiry = new Date().getTime() + SESSION_TIMEOUT_MS;
-        const role = data[i][4] || 'RW'; // Default to RW if missing
+        const role = data[i][4] || 'RW';
         
         const userProperties = PropertiesService.getUserProperties();
         userProperties.setProperty('SESSION_' + token, JSON.stringify({
@@ -143,10 +180,24 @@ function login(username, password) {
           expiry: expiry
         }));
         
-        // Update LastLogin
-        sheet.getRange(i + 1, 3).setValue(new Date());
+        // Update LastLogin, Reset Attempts & Lock
+        sheet.getRange(rowIndex, 3).setValue(new Date()); // LastLogin
+        sheet.getRange(rowIndex, 6).setValue(0); // LoginAttempts
+        sheet.getRange(rowIndex, 7).setValue(''); // LockedUntil
         
         return { status: 'success', token: token, username: username, role: role };
+      } else {
+        // Password Error
+        let attempts = (parseInt(data[i][5]) || 0) + 1;
+        sheet.getRange(rowIndex, 6).setValue(attempts); // LoginAttempts
+        
+        if (attempts >= maxAttempts) {
+            const lockTime = new Date(new Date().getTime() + lockoutDurationMs);
+            sheet.getRange(rowIndex, 7).setValue(lockTime); // LockedUntil
+            return { status: 'error', message: `密碼錯誤次數過多 (${attempts}/${maxAttempts})，帳號已鎖定 ${lockoutMinutes} 分鐘。` };
+        }
+        
+        return { status: 'error', message: `帳號或密碼錯誤。剩餘嘗試次數：${maxAttempts - attempts}` };
       }
     }
   }
@@ -236,26 +287,33 @@ function searchResidents(query, token) {
   return { status: 'success', data: results };
 }
 
-function getCommunityPasscode() {
+function getPublicSettings() {
+  const title = getSetting('AppTitle', '住戶資料管理');
+  return { status: 'success', data: { appTitle: title } };
+}
+
+function getSetting(key, defaultValue, description) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(SHEET_SETTINGS);
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_SETTINGS);
     sheet.appendRow(['Key', 'Value', 'Description']);
-    sheet.appendRow(['CommunityPasscode', '12345678', '住戶填寫資料驗證碼']);
-    return '12345678';
   }
   
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === 'CommunityPasscode') {
+    if (String(data[i][0]) === key) {
       return String(data[i][1]).trim();
     }
   }
   
   // If key not found, append it
-  sheet.appendRow(['CommunityPasscode', '12345678', '住戶填寫資料驗證碼']);
-  return '12345678';
+  sheet.appendRow([key, defaultValue, description || '']);
+  return defaultValue;
+}
+
+function getCommunityPasscode() {
+  return getSetting('CommunityPasscode', '12345678', '住戶填寫資料驗證碼');
 }
 
 function createResident(data, token) {
@@ -353,7 +411,9 @@ function getAllAdmins(token) {
          username: data[i][0], 
          lastLogin: data[i][2], 
          notes: data[i][3],
-         role: data[i][4] || 'RW'
+         role: data[i][4] || 'RW',
+         loginAttempts: data[i][5] || 0,
+         lockedUntil: data[i][6] || ''
      });
    }
    return { status: 'success', data: admins };
@@ -368,8 +428,27 @@ function createAdmin(data, token) {
      if(users[i][0] == data.username) return { status: 'error', message: '使用者名稱已存在' };
    }
    
-   sheet.appendRow([data.username, data.password, '', data.notes || '', data.role || 'RW']);
+   // Appending: Username, Password, LastLogin, Notes, Role, LoginAttempts, LockedUntil
+   sheet.appendRow([data.username, data.password, '', data.notes || '', data.role || 'RW', 0, '']);
    return { status: 'success', message: '管理員已新增' };
+}
+
+function unlockAdmin(targetUsername, token) {
+   const ss = SpreadsheetApp.getActiveSpreadsheet();
+   const sheet = ss.getSheetByName(SHEET_ADMINS);
+   const users = sheet.getDataRange().getValues();
+   
+   for(let i=1; i<users.length; i++) {
+     if(users[i][0] == targetUsername) {
+         // Reset LoginAttempts (Col 6) and LockedUntil (Col 7)
+         // Note: getRange is 1-based. Row is i+1.
+         sheet.getRange(i+1, 6).setValue(0);
+         sheet.getRange(i+1, 7).setValue('');
+         SpreadsheetApp.flush(); // Ensure writes are committed
+         return { status: 'success', message: '帳號已解鎖' };
+     }
+   }
+   return { status: 'error', message: '找不到該使用者' };
 }
 
 function deleteAdmin(targetUsername, token) {
@@ -458,9 +537,27 @@ function initialSetup() {
   }
   
   // Settings Sheet
-  if (!ss.getSheetByName(SHEET_SETTINGS)) {
-      const sheet = ss.insertSheet(SHEET_SETTINGS);
-      sheet.appendRow(['Key', 'Value', 'Description']);
-      sheet.appendRow(['CommunityPasscode', '12345678', '住戶填寫資料驗證碼']);
+  let settingsSheet = ss.getSheetByName(SHEET_SETTINGS);
+  if (!settingsSheet) {
+      settingsSheet = ss.insertSheet(SHEET_SETTINGS);
+      settingsSheet.appendRow(['Key', 'Value', 'Description']);
   }
+
+  // Ensure default settings exist
+  const existingData = settingsSheet.getDataRange().getValues();
+  // keys are in column 0. Map to array of strings for easy lookup.
+  const existingKeys = existingData.map(r => String(r[0]));
+  
+  const defaultSettings = [
+      { key: 'CommunityPasscode', value: '12345678', description: '住戶填寫資料驗證碼' },
+      { key: 'AppTitle', value: '住戶資料管理', description: '系統標題' },
+      { key: 'MaxLoginAttempts', value: '5', description: '最大登入錯誤次數' },
+      { key: 'LockoutDurationMinutes', value: '15', description: '帳號鎖定時間(分)' }
+  ];
+  
+  defaultSettings.forEach(setting => {
+      if (!existingKeys.includes(setting.key)) {
+          settingsSheet.appendRow([setting.key, setting.value, setting.description]);
+      }
+  });
 }
