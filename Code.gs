@@ -98,6 +98,9 @@ function handleRequest(e) {
         case 'toggleFormStatus':
           result = toggleFormStatus(data.enabled, token);
           break;
+        case 'getSetting':
+          result = getSettingAPI(data.key, token);
+          break;
         case 'logout':
           result = logout(token);
           break;
@@ -366,6 +369,16 @@ function toggleFormStatus(enabled, token) {
     return { status: 'success', message: `系統詳細資料填寫功能已${enabled ? '開啟' : '關閉'}` };
 }
 
+function getSettingAPI(key, token) {
+    const userProperties = PropertiesService.getUserProperties();
+    const sessionJson = userProperties.getProperty('SESSION_' + token);
+    if (!sessionJson) return { status: 'error', message: 'Session Invalid' };
+    
+    // Only allow admins to get settings
+    const value = getSetting(key, '');
+    return { status: 'success', data: value };
+}
+
 function getCommunityPasscode() {
   return getSetting('CommunityPasscode', '12345678', '住戶填寫資料驗證碼');
 }
@@ -630,7 +643,9 @@ function initialSetup() {
       { key: 'AppTitle', value: '住戶資料管理', description: '系統標題' },
       { key: 'IsFormOpen', value: 'true', description: '是否開放住戶填寫 (true/false)' },
       { key: 'MaxLoginAttempts', value: '5', description: '最大登入錯誤次數' },
-      { key: 'LockoutDurationMinutes', value: '15', description: '帳號鎖定時間(分)' }
+      { key: 'LockoutDurationMinutes', value: '15', description: '帳號鎖定時間(分)' },
+      { key: 'SessionTimeoutRW', value: '15', description: 'RW管理員閒置登出時間(分)' },
+      { key: 'SessionTimeoutRO', value: '1440', description: 'RO管理員閒置登出時間(分)' }
   ];
   
   defaultSettings.forEach(setting => {

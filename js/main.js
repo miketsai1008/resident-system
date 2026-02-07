@@ -20,6 +20,12 @@ createApp({
         const residents = ref([]);
         const appTitle = ref('住戶資料管理'); // Dynamic Title
         const isFormOpen = ref(true); // Form status
+        // Auto-logout idle timer
+        const sessionTimeoutRW = ref(15); // minutes
+        const sessionTimeoutRO = ref(1440); // minutes
+        let idleTimer = null;
+        let lastActivityTime = Date.now();
+        const remainingSeconds = ref(0); // Countdown display (only shown when < 300s)
         const showPasswordModal = ref(false);
 
         // Admin Features State
@@ -63,7 +69,7 @@ createApp({
             OwnerPhone: ''
         });
 
-        const loginForm = reactive({ username: 'admin', password: 'admin123' });
+        const loginForm = reactive({ username: '', password: '' });
         const pwdForm = reactive({ oldPass: '', newPass: '', confirmNewPass: '' });
 
         // Status Messages
@@ -174,6 +180,11 @@ createApp({
                 case 'toggleFormStatus':
                     payload.action = 'toggleFormStatus';
                     payload.enabled = args[0];
+                    payload.token = args[1];
+                    break;
+                case 'getSetting':
+                    payload.action = 'getSetting';
+                    payload.key = args[0];
                     payload.token = args[1];
                     break;
                 default:
@@ -343,6 +354,8 @@ createApp({
                     // Load data
                     loadResidents();
                     loadAdmins();
+                    // Fetch timeout settings and start idle timer
+                    fetchAdminSettings().then(() => startIdleTimer());
                 } else {
                     loginStatus.message = response.message;
                     loginForm.password = ''; // Clear password on failure
@@ -602,6 +615,7 @@ createApp({
         };
 
         const logout = () => {
+            stopIdleTimer(); // Stop idle timer
             sessionToken.value = '';
             isAdmin.value = false;
             adminRole.value = '';
@@ -631,9 +645,76 @@ createApp({
             }
         };
 
+        const fetchAdminSettings = async () => {
+            try {
+                const responseRW = await runGAS('getSetting', 'SessionTimeoutRW', sessionToken.value);
+                const responseRO = await runGAS('getSetting', 'SessionTimeoutRO', sessionToken.value);
+                if (responseRW && responseRW.data) sessionTimeoutRW.value = parseInt(responseRW.data) || 15;
+                if (responseRO && responseRO.data) sessionTimeoutRO.value = parseInt(responseRO.data) || 1440;
+                console.log('Loaded timeout settings:', { RW: sessionTimeoutRW.value, RO: sessionTimeoutRO.value });
+            } catch (e) {
+                console.error('Fetch admin settings failed:', e);
+            }
+        };
+
+        const startIdleTimer = () => {
+            if (!isAdmin.value) return;
+
+            // Clear existing timer
+            if (idleTimer) clearInterval(idleTimer);
+
+            // Get timeout based on role
+            const timeoutMinutes = adminRole.value === 'RW' ? sessionTimeoutRW.value : sessionTimeoutRO.value;
+            const timeoutMs = timeoutMinutes * 60 * 1000;
+
+            // Reset activity time and countdown
+            lastActivityTime = Date.now();
+            remainingSeconds.value = 0;
+
+            // Check every second for countdown accuracy
+            idleTimer = setInterval(() => {
+                const idleTime = Date.now() - lastActivityTime;
+                const remaining = timeoutMs - idleTime;
+                const remainingSec = Math.floor(remaining / 1000);
+
+                // Update countdown if less than 300 seconds
+                if (remainingSec <= 300 && remainingSec > 0) {
+                    remainingSeconds.value = remainingSec;
+                } else {
+                    remainingSeconds.value = 0;
+                }
+
+                // Auto logout when timeout reached
+                if (idleTime >= timeoutMs) {
+                    console.log('Session timeout - auto logout');
+                    alert(`閒置超過 ${timeoutMinutes} 分鐘，系統已自動登出。`);
+                    logout();
+                }
+            }, 1000); // Check every second
+        };
+
+        const resetIdleTimer = () => {
+            lastActivityTime = Date.now();
+            remainingSeconds.value = 0; // Reset countdown display
+        };
+
+        const stopIdleTimer = () => {
+            if (idleTimer) {
+                clearInterval(idleTimer);
+                idleTimer = null;
+            }
+            remainingSeconds.value = 0; // Reset countdown display
+        };
+
         onMounted(() => {
             console.log('Vue App Mounted! API Mode.');
             fetchSettings();
+
+            // Add activity listeners to reset idle timer
+            const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+            activityEvents.forEach(event => {
+                document.addEventListener(event, resetIdleTimer, { passive: true });
+            });
         });
 
         const formatPhone = (phone) => {
@@ -674,7 +755,7 @@ createApp({
             currentPage, totalPages, clearFilters, setSort, paginatedResidents, sortKey, sortOrder,
             sortedResidents,
             appTitle, currentUser,
-            isFormOpen, toggleFormStatus // Exposed
+            isFormOpen, toggleFormStatus, remainingSeconds // Exposed
         };
     }
 }).mount('#app');

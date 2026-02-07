@@ -253,13 +253,19 @@
                     <div
                         style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 1rem;">
                         <h2 style="margin: 0;">後臺管理系統 <span
-                                style="color: gray; font-size: 0.6em; font-weight: normal;">(Headless Mode)</span>
+                                style="color: gray; font-size: 0.6em; font-weight: normal;"></span>
                         </h2>
 
                         <div style="display: flex; align-items: center;">
                             <!-- Form Toggle Switch -->
                             <div v-if="adminRole === 'RW'"
                                 style="margin-right: 1.5rem; display: flex; align-items: center;">
+                                <!-- Countdown Timer (only shown when < 300s) -->
+                                <span v-if="remainingSeconds > 0"
+                                    style="margin-right: 1rem; font-size: 0.85rem; font-weight: bold; color: #dc2626; background: #fee2e2; padding: 0.25rem 0.5rem; border-radius: 0.25rem; border: 1px solid #fca5a5;">
+                                    ⏱️ {{ Math.floor(remainingSeconds / 60) }}:{{ String(remainingSeconds %
+                                    60).padStart(2, '0') }}
+                                </span>
                                 <span style="margin-right: 0.5rem; font-weight: bold; color: #4b5563;">住戶填寫:</span>
                                 <label class="switch">
                                     <input type="checkbox" v-model="isFormOpen" @change="toggleFormStatus">
