@@ -40,20 +40,28 @@
                         <input type="text" v-model="form.UnitNumber" placeholder="例如: 110-01F" required>
                     </div>
 
-                    <div class="grid-2">
-                        <div class="form-group">
-                            <label>緊急聯絡人姓名 (必填) <span style="color:red">*</span></label>
-                            <input type="text" v-model="form.ContactName" required>
-                        </div>
+                    <div class="vehicle-group">
+                        <h4>緊急聯絡人</h4>
+                        <div style="display: flex; gap: 1rem;">
+                            <div class="form-group" style="flex: 3;">
+                                <label>姓名 <span style="color:red">*</span></label>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <input type="text" v-model="form.ContactName" required style="flex: 1;">
+                                    <select v-model="form.ContactSalutation"
+                                        style="width: 100px; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.25rem; background: white;">
+                                        <option value="先生">先生</option>
+                                        <option value="女士">女士</option>
+                                    </select>
+                                </div>
+                            </div>
 
-                        <div class="form-group">
-                            <label>緊急聯絡電話 (必填) <span style="color:red">*</span></label>
-                            <input type="tel" v-model="form.ContactPhone" pattern="[0-9\-]*" placeholder="09xx-xxx-xxx"
-                                required>
+                            <div class="form-group" style="flex: 2;">
+                                <label>聯絡電話 <span style="color:red">*</span></label>
+                                <input type="tel" v-model="form.ContactPhone" pattern="[0-9\-]*"
+                                    placeholder="09xx-xxx-xxx" required>
+                            </div>
                         </div>
                     </div>
-
-                    <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid #e5e7eb;">
 
                     <div class="form-group">
                         <label style="display: flex; align-items: center; cursor: pointer;">
@@ -62,15 +70,26 @@
                         </label>
                     </div>
 
-                    <div v-if="form.IsRenter"
+                    <div class="vehicle-group" v-if="form.IsRenter"
                         style="background: #f9fafb; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
-                        <div class="form-group">
-                            <label>屋主姓名</label>
-                            <input type="text" v-model="form.OwnerName">
-                        </div>
-                        <div class="form-group">
-                            <label>屋主聯絡電話</label>
-                            <input type="tel" v-model="form.OwnerPhone">
+                        <label
+                            style="display: block; margin-bottom: 0.5rem; font-weight: bold; color: #4b5563;">屋主資料</label>
+                        <div style="display: flex; gap: 1rem;">
+                            <div class="form-group" style="flex: 3;">
+                                <label>姓名 <span style="color:red">*</span></label>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <input type="text" v-model="form.OwnerName" style="flex: 1;" required>
+                                    <select v-model="form.OwnerSalutation"
+                                        style="width: 100px; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.25rem; background: white;">
+                                        <option value="先生">先生</option>
+                                        <option value="女士">女士</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group" style="flex: 2;">
+                                <label>聯絡電話 <span style="color:red">*</span></label>
+                                <input type="tel" v-model="form.OwnerPhone" placeholder="09xx-xxx-xxx" required>
+                            </div>
                         </div>
                     </div>
 
@@ -294,10 +313,10 @@
                                                 }}</span>
                                         </th>
                                         <th>聯絡資訊</th>
-                                        <th>身分</th>
+                                        <th>身份</th>
                                         <th>屋主資訊</th>
                                         <th @click="setSort('Car')"
-                                            style="min-width: 180px; cursor: pointer; user-select: none;">
+                                            style="min-width: 150px; cursor: pointer; user-select: none;">
                                             汽車位
                                             <span v-if="sortKey === 'Car'">{{ sortOrder === 1 ? '↑' : '↓' }}</span>
                                         </th>
@@ -318,21 +337,19 @@
                                     <tr v-for="r in paginatedResidents" :key="r.UnitNumber">
                                         <td style="font-weight: bold;">{{ r.UnitNumber }}</td>
                                         <td>
-                                            <span style="font-weight: 500;">{{ r.ContactName }}</span>
-                                            <span style="color: #666; font-size: 0.9rem; margin-left: 0.5rem;">
-                                                {{ formatPhone(r.ContactPhone) }}
-                                            </span>
+                                            {{ r.ContactName }} {{ r.ContactSalutation }} {{ formatPhone(r.ContactPhone)
+                                            }}
                                         </td>
                                         <td>
-                                            <span v-if="r.IsRenter === 'Yes'"
-                                                style="color: #d97706; font-weight: bold; background: #fef3c7; padding: 2px 6px; border-radius: 4px;">租客</span>
+                                            <span v-if="r.IsRenter === 'Yes' || r.OwnerName"
+                                                style="color: #b45309; background: #ffedd5; padding: 2px 6px; border-radius: 4px;">非屋主</span>
                                             <span v-else
                                                 style="color: #059669; background: #d1fae5; padding: 2px 6px; border-radius: 4px;">屋主</span>
                                         </td>
                                         <td style="font-size: 0.9rem;">
-                                            <div v-if="r.IsRenter === 'Yes' && r.OwnerName">
-                                                <div><strong>{{ r.OwnerName }}</strong></div>
-                                                <div style="color: #666;">{{ r.OwnerPhone }}</div>
+                                            <div v-if="r.OwnerName">
+                                                {{ r.OwnerName }} {{ r.OwnerSalutation }} {{ formatPhone(r.OwnerPhone)
+                                                }}
                                             </div>
                                             <span v-else style="color: #999;">-</span>
                                         </td>
@@ -440,7 +457,7 @@
 
                             <!-- PAGINATION CONTROLS -->
                             <div v-if="totalPages > 1"
-                                style="display: flex; justify-content: center; align-items: center; gap: 1rem; padding: 1rem; background: #f9fafb; border-top: 1px solid #e5e7eb;">
+                                style="display: flex; justify-content: flex-end; align-items: center; gap: 1rem; padding: 1rem; background: #f9fafb; border-top: 1px solid #e5e7eb;">
                                 <button @click="currentPage--" :disabled="currentPage === 1"
                                     class="btn btn-secondary">上一頁</button>
                                 <span>第 {{ currentPage }} 頁 / 共 {{ totalPages }} 頁</span>

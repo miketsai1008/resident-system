@@ -43,6 +43,7 @@ createApp({
         const form = reactive({
             UnitNumber: '',
             ContactName: '',
+            ContactSalutation: '先生',
             ContactPhone: '',
             // Car 1
             CarSpot1_Num: '', CarSpot1_Plate1: '', CarSpot1_Plate2: '', CarSpot1_IsRented: false, CarSpot1_RenterUnit: '',
@@ -57,6 +58,7 @@ createApp({
 
             IsRenter: false,
             OwnerName: '',
+            OwnerSalutation: '先生',
             OwnerPhone: ''
         });
 

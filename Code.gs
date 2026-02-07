@@ -232,12 +232,33 @@ function logout(token) {
 
 // --- Data Operations ---
 
+// Helper to ensure new columns exist (Auto-migration)
+function ensureResidentHeaders(sheet) {
+  const lastCol = sheet.getLastColumn();
+  if (lastCol === 0) return false; // Empty sheet
+  
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim());
+  const needed = ['ContactSalutation', 'OwnerSalutation'];
+  const missing = needed.filter(h => !headers.includes(h));
+  
+  if (missing.length > 0) {
+    sheet.getRange(1, lastCol + 1, 1, missing.length).setValues([missing]);
+    return true;
+  }
+  return false;
+}
+
 function getAllResidents(token) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(SHEET_RESIDENTS);
   if (!sheet) {
       initialSetup();
       sheet = ss.getSheetByName(SHEET_RESIDENTS);
+  }
+  
+  // Self-healing: Check and add missing columns
+  if (ensureResidentHeaders(sheet)) {
+      SpreadsheetApp.flush();
   }
   
   const data = sheet.getDataRange().getValues();
@@ -327,6 +348,19 @@ function createResident(data, token) {
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_RESIDENTS);
+  
+  // Ensure headers exist (Auto-migration for Salutations)
+  const lastCol = sheet.getLastColumn();
+  if (lastCol > 0) {
+      const currentHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h));
+      const neededHeaders = ['ContactSalutation', 'OwnerSalutation'];
+      
+      neededHeaders.forEach(h => {
+          if (!currentHeaders.includes(h)) {
+              sheet.getRange(1, sheet.getLastColumn() + 1).setValue(h);
+          }
+      });
+  }
   
   // Make sure headers exist
   const headersRange = sheet.getRange(1, 1, 1, sheet.getLastColumn() || 1);
@@ -522,10 +556,11 @@ function changePassword(data, token) {
 function initialSetup() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   
-  if (!ss.getSheetByName(SHEET_RESIDENTS)) {
-    const sheet = ss.insertSheet(SHEET_RESIDENTS);
+  let residentSheet = ss.getSheetByName(SHEET_RESIDENTS);
+  if (!residentSheet) {
+    residentSheet = ss.insertSheet(SHEET_RESIDENTS);
     const headers = [
-      'UnitNumber', 'ContactName', 'ContactPhone', 'IsRenter', 'OwnerName', 'OwnerPhone', 
+      'UnitNumber', 'ContactName', 'ContactSalutation', 'ContactPhone', 'IsRenter', 'OwnerName', 'OwnerSalutation', 'OwnerPhone', 
       'CarSpot1_Num', 'CarSpot1_Plate1', 'CarSpot1_Plate2', 'CarSpot1_IsRented', 'CarSpot1_RenterUnit', 
       'CarSpot2_Num', 'CarSpot2_Plate1', 'CarSpot2_Plate2', 'CarSpot2_IsRented', 'CarSpot2_RenterUnit', 
       'MotoSpot1_Num', 'MotoSpot1_Plate', 'MotoSpot1_IsRented', 'MotoSpot1_RenterUnit', 
@@ -533,7 +568,10 @@ function initialSetup() {
       'MotoSpot3_Num', 'MotoSpot3_Plate', 'MotoSpot3_IsRented', 'MotoSpot3_RenterUnit', 
       'Memo'
     ];
-    sheet.appendRow(headers);
+    residentSheet.appendRow(headers);
+  } else {
+    // Check and add missing columns for existing sheet
+    ensureResidentHeaders(residentSheet);
   }
   
   // Settings Sheet
