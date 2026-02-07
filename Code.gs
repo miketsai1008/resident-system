@@ -1,5 +1,6 @@
 const SHEET_RESIDENTS = 'Residents';
 const SHEET_ADMINS = 'Admins';
+const SHEET_SETTINGS = 'Settings';
 const APP_TITLE = '住戶資料管理 (傳賀社區)';
 const SESSION_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -235,7 +236,37 @@ function searchResidents(query, token) {
   return { status: 'success', data: results };
 }
 
+function getCommunityPasscode() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_SETTINGS);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_SETTINGS);
+    sheet.appendRow(['Key', 'Value', 'Description']);
+    sheet.appendRow(['CommunityPasscode', '12345678', '住戶填寫資料驗證碼']);
+    return '12345678';
+  }
+  
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === 'CommunityPasscode') {
+      return String(data[i][1]).trim();
+    }
+  }
+  
+  // If key not found, append it
+  sheet.appendRow(['CommunityPasscode', '12345678', '住戶填寫資料驗證碼']);
+  return '12345678';
+}
+
 function createResident(data, token) {
+  // 1. Verify Passcode
+  const inputCode = String(data.passcode || '').trim();
+  const validCode = getCommunityPasscode();
+  
+  if (inputCode !== validCode) {
+      return { status: 'error', message: '社區驗證碼錯誤，請檢查您的輸入 (或洽詢管理員)。' };
+  }
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_RESIDENTS);
   
@@ -411,6 +442,7 @@ function changePassword(data, token) {
 
 function initialSetup() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
   if (!ss.getSheetByName(SHEET_RESIDENTS)) {
     const sheet = ss.insertSheet(SHEET_RESIDENTS);
     const headers = [
@@ -423,5 +455,12 @@ function initialSetup() {
       'Memo'
     ];
     sheet.appendRow(headers);
+  }
+  
+  // Settings Sheet
+  if (!ss.getSheetByName(SHEET_SETTINGS)) {
+      const sheet = ss.insertSheet(SHEET_SETTINGS);
+      sheet.appendRow(['Key', 'Value', 'Description']);
+      sheet.appendRow(['CommunityPasscode', '12345678', '住戶填寫資料驗證碼']);
   }
 }

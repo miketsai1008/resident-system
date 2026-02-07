@@ -50,6 +50,8 @@ createApp({
             MotoSpot2_Num: '', MotoSpot2_Plate: '', MotoSpot2_IsRented: false, MotoSpot2_RenterUnit: '',
             MotoSpot3_Num: '', MotoSpot3_Plate: '', MotoSpot3_IsRented: false, MotoSpot3_RenterUnit: '',
 
+            passcode: '', // Community Passcode
+
             IsRenter: false,
             OwnerName: '',
             OwnerPhone: ''

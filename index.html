@@ -163,6 +163,15 @@
 
                     <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid #e5e7eb;">
 
+                    <div class="form-group"
+                        style="margin-bottom: 1.5rem; background: #fffbe6; padding: 1rem; border-radius: 8px; border: 1px solid #fcd34d;">
+                        <label style="font-weight: bold; color: #92400e;">社區代碼 (驗證碼) <span
+                                style="color:red">*</span></label>
+                        <input type="text" v-model="form.passcode" placeholder="請輸入社區公告之代碼" required
+                            style="font-size: 1.1rem; letter-spacing: 1px; border: 1px solid #fcd34d;">
+                        <small style="color: #b45309;">為確保資料正確性，請輸入管理室提供的驗證代碼。</small>
+                    </div>
+
                     <div v-if="submitStatus.message"
                         :class="['alert', submitStatus.success ? 'alert-success' : 'alert-error']">
                         {{ submitStatus.message }}
