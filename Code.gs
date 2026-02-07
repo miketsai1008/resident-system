@@ -95,6 +95,9 @@ function handleRequest(e) {
         case 'changePassword':
           result = changePassword(data, token);
           break;
+        case 'toggleFormStatus':
+          result = toggleFormStatus(data.enabled, token);
+          break;
         case 'logout':
           result = logout(token);
           break;
@@ -310,7 +313,8 @@ function searchResidents(query, token) {
 
 function getPublicSettings() {
   const title = getSetting('AppTitle', '住戶資料管理');
-  return { status: 'success', data: { appTitle: title } };
+  const isOpen = getSetting('IsFormOpen', 'true');
+  return { status: 'success', data: { appTitle: title, isFormOpen: isOpen === 'true' } };
 }
 
 function getSetting(key, defaultValue, description) {
@@ -333,11 +337,46 @@ function getSetting(key, defaultValue, description) {
   return defaultValue;
 }
 
+function setSetting(key, value) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_SETTINGS);
+  if (!sheet) return false;
+  
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === key) {
+      sheet.getRange(i+1, 2).setValue(String(value));
+      return true;
+    }
+  }
+  // If not found, append
+  sheet.appendRow([key, value, '']);
+  return true;
+}
+
+function toggleFormStatus(enabled, token) {
+    const userProperties = PropertiesService.getUserProperties();
+    const sessionJson = userProperties.getProperty('SESSION_' + token);
+    if (!sessionJson) return { status: 'error', message: 'Session Invalid' };
+    
+    const role = JSON.parse(sessionJson).role;
+    if (role !== 'RW') return { status: 'error', message: '權限不足' };
+
+    setSetting('IsFormOpen', enabled ? 'true' : 'false');
+    return { status: 'success', message: `系統詳細資料填寫功能已${enabled ? '開啟' : '關閉'}` };
+}
+
 function getCommunityPasscode() {
   return getSetting('CommunityPasscode', '12345678', '住戶填寫資料驗證碼');
 }
 
 function createResident(data, token) {
+  // Check if Form is Open
+  const isOpen = getSetting('IsFormOpen', 'true');
+  if (isOpen !== 'true') {
+      return { status: 'error', message: '目前系統已關閉資料填寫功能，請聯繫管理員。' };
+  }
+
   // 1. Verify Passcode
   const inputCode = String(data.passcode || '').trim();
   const validCode = getCommunityPasscode();
@@ -589,6 +628,7 @@ function initialSetup() {
   const defaultSettings = [
       { key: 'CommunityPasscode', value: '12345678', description: '住戶填寫資料驗證碼' },
       { key: 'AppTitle', value: '住戶資料管理', description: '系統標題' },
+      { key: 'IsFormOpen', value: 'true', description: '是否開放住戶填寫 (true/false)' },
       { key: 'MaxLoginAttempts', value: '5', description: '最大登入錯誤次數' },
       { key: 'LockoutDurationMinutes', value: '15', description: '帳號鎖定時間(分)' }
   ];

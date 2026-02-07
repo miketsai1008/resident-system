@@ -19,6 +19,7 @@ createApp({
 
         const residents = ref([]);
         const appTitle = ref('住戶資料管理'); // Dynamic Title
+        const isFormOpen = ref(true); // Form status
         const showPasswordModal = ref(false);
 
         // Admin Features State
@@ -168,6 +169,11 @@ createApp({
                 case 'unlockAdmin':
                     payload.action = 'unlockAdmin';
                     payload.targetUsername = args[0];
+                    payload.token = args[1];
+                    break;
+                case 'toggleFormStatus':
+                    payload.action = 'toggleFormStatus';
+                    payload.enabled = args[0];
                     payload.token = args[1];
                     break;
                 default:
@@ -339,10 +345,12 @@ createApp({
                     loadAdmins();
                 } else {
                     loginStatus.message = response.message;
+                    loginForm.password = ''; // Clear password on failure
                     loading.value = false;
                 }
             } catch (e) {
                 loginStatus.message = 'Error: ' + e.toString();
+                loginForm.password = ''; // Clear password on error
                 loading.value = false;
             }
         };
@@ -569,6 +577,30 @@ createApp({
             }
         };
 
+        const toggleFormStatus = async () => {
+            if (!confirm(`確定要${isFormOpen.value ? '開放' : '關閉'}住戶填寫功能嗎？`)) {
+                isFormOpen.value = !isFormOpen.value; // Revert checkbox change
+                return;
+            }
+
+            loading.value = true;
+            try {
+                const response = await runGAS('toggleFormStatus', isFormOpen.value, sessionToken.value);
+                if (response.success) {
+                    // Success
+                } else {
+                    alert('更新失敗: ' + response.message);
+                    isFormOpen.value = !isFormOpen.value; // Revert
+                }
+            } catch (e) {
+                console.error(e);
+                alert('系統錯誤');
+                isFormOpen.value = !isFormOpen.value; // Revert
+            } finally {
+                loading.value = false;
+            }
+        };
+
         const logout = () => {
             sessionToken.value = '';
             isAdmin.value = false;
@@ -589,6 +621,9 @@ createApp({
                 const response = await runGAS('getPublicSettings');
                 if (response.success && response.data) {
                     appTitle.value = response.data.appTitle || '住戶資料管理';
+                    if (response.data.isFormOpen !== undefined) {
+                        isFormOpen.value = response.data.isFormOpen;
+                    }
                     document.title = appTitle.value;
                 }
             } catch (e) {
@@ -638,7 +673,8 @@ createApp({
             currentPage, totalPages, clearFilters, setSort, paginatedResidents, sortKey, sortOrder,
             currentPage, totalPages, clearFilters, setSort, paginatedResidents, sortKey, sortOrder,
             sortedResidents,
-            appTitle, currentUser // Exposed
+            appTitle, currentUser,
+            isFormOpen, toggleFormStatus // Exposed
         };
     }
 }).mount('#app');
