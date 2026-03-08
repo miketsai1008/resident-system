@@ -49,7 +49,7 @@
                         </div>
 
                         <div class="vehicle-group">
-                            <h4>緊急聯絡人</h4>
+                            <h4>第一聯絡人</h4>
                             <div style="display: flex; gap: 1rem;">
                                 <div class="form-group" style="flex: 3;">
                                     <label>姓名 <span style="color:red">*</span></label>
@@ -71,11 +71,34 @@
                             </div>
                         </div>
 
+                        <div class="vehicle-group" style="margin-top: -1rem;">
+                            <h4>第二聯絡人 <span style="font-size: 0.9em; font-weight: normal; color: #6b7280;">(選填)</span></h4>
+                            <div style="display: flex; gap: 1rem;">
+                                <div class="form-group" style="flex: 3;">
+                                    <label>姓名</label>
+                                    <div style="display: flex; gap: 0.5rem;">
+                                        <input type="text" v-model="form.Contact2_Name" style="flex: 1;">
+                                        <select v-model="form.Contact2_Salutation"
+                                            style="width: 100px; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.25rem; background: white;">
+                                            <option value="先生">先生</option>
+                                            <option value="女士">女士</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="form-group" style="flex: 2;">
+                                    <label>聯絡電話</label>
+                                    <input type="tel" v-model="form.Contact2_Phone" pattern="[0-9\-]*"
+                                        placeholder="09xx-xxx-xxx">
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="form-group">
                             <label style="display: flex; align-items: center; cursor: pointer;">
                                 <input type="checkbox" v-model="form.IsRenter"
                                     style="width: auto; margin-right: 0.5rem;">
-                                緊急連絡人非屋主 (Ex: 租客)
+                                聯絡人非屋主 (Ex: 租客)
                             </label>
                         </div>
 
@@ -368,9 +391,14 @@
                                     <tr v-for="r in paginatedResidents" :key="r.UnitNumber" v-if="!loading">
                                         <td style="font-weight: bold;">{{ r.UnitNumber }}</td>
                                         <td>
-                                            {{ r.ContactName }} {{ r.ContactSalutation }} {{
-                                            formatPhone(r.ContactPhone)
-                                            }}
+                                            <div style="margin-bottom: 0.25rem;">
+                                                <span style="display:inline-block; width: 1.5rem; color:#6b7280; font-size:0.85em;">[1]</span>
+                                                {{ r.ContactName }} {{ r.ContactSalutation }} {{ formatPhone(r.ContactPhone) }}
+                                            </div>
+                                            <div v-if="r.Contact2_Name">
+                                                <span style="display:inline-block; width: 1.5rem; color:#6b7280; font-size:0.85em;">[2]</span>
+                                                {{ r.Contact2_Name }} {{ r.Contact2_Salutation }} {{ formatPhone(r.Contact2_Phone) }}
+                                            </div>
                                         </td>
                                         <td>
                                             <span v-if="r.IsRenter === 'Yes' || r.OwnerName"

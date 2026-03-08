@@ -244,7 +244,7 @@ function ensureResidentHeaders(sheet) {
   if (lastCol === 0) return false; // Empty sheet
   
   const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim());
-  const needed = ['ContactSalutation', 'OwnerSalutation'];
+  const needed = ['ContactSalutation', 'OwnerSalutation', 'Contact2_Name', 'Contact2_Salutation', 'Contact2_Phone'];
   const missing = needed.filter(h => !headers.includes(h));
   
   if (missing.length > 0) {
@@ -405,7 +405,7 @@ function createResident(data, token) {
   const lastCol = sheet.getLastColumn();
   if (lastCol > 0) {
       const currentHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h));
-      const neededHeaders = ['ContactSalutation', 'OwnerSalutation'];
+      const neededHeaders = ['ContactSalutation', 'OwnerSalutation', 'Contact2_Name', 'Contact2_Salutation', 'Contact2_Phone'];
       
       neededHeaders.forEach(h => {
           if (!currentHeaders.includes(h)) {
@@ -612,7 +612,7 @@ function initialSetup() {
   if (!residentSheet) {
     residentSheet = ss.insertSheet(SHEET_RESIDENTS);
     const headers = [
-      'UnitNumber', 'ContactName', 'ContactSalutation', 'ContactPhone', 'IsRenter', 'OwnerName', 'OwnerSalutation', 'OwnerPhone', 
+      'UnitNumber', 'ContactName', 'ContactSalutation', 'ContactPhone', 'Contact2_Name', 'Contact2_Salutation', 'Contact2_Phone', 'IsRenter', 'OwnerName', 'OwnerSalutation', 'OwnerPhone', 
       'CarSpot1_Num', 'CarSpot1_Plate1', 'CarSpot1_Plate2', 'CarSpot1_IsRented', 'CarSpot1_RenterUnit', 
       'CarSpot2_Num', 'CarSpot2_Plate1', 'CarSpot2_Plate2', 'CarSpot2_IsRented', 'CarSpot2_RenterUnit', 
       'MotoSpot1_Num', 'MotoSpot1_Plate', 'MotoSpot1_IsRented', 'MotoSpot1_RenterUnit', 

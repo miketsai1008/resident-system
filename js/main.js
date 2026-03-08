@@ -52,6 +52,9 @@ createApp({
             ContactName: '',
             ContactSalutation: '先生',
             ContactPhone: '',
+            Contact2_Name: '',
+            Contact2_Salutation: '先生',
+            Contact2_Phone: '',
             // Car 1
             CarSpot1_Num: '', CarSpot1_Plate1: '', CarSpot1_Plate2: '', CarSpot1_IsRented: false, CarSpot1_RenterUnit: '',
             // Car 2
@@ -99,6 +102,8 @@ createApp({
                 return match(r.UnitNumber) ||
                     match(r.ContactName) ||
                     match(r.ContactPhone) ||
+                    match(r.Contact2_Name) ||
+                    match(r.Contact2_Phone) ||
                     match(r.OwnerName) ||
                     match(r.OwnerPhone) ||
                     // Car Spots
