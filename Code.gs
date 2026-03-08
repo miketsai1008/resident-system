@@ -401,18 +401,8 @@ function createResident(data, token) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_RESIDENTS);
   
-  // Ensure headers exist (Auto-migration for Salutations)
-  const lastCol = sheet.getLastColumn();
-  if (lastCol > 0) {
-      const currentHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h));
-      const neededHeaders = ['ContactSalutation', 'OwnerSalutation', 'Contact2_Name', 'Contact2_Salutation', 'Contact2_Phone'];
-      
-      neededHeaders.forEach(h => {
-          if (!currentHeaders.includes(h)) {
-              sheet.getRange(1, sheet.getLastColumn() + 1).setValue(h);
-          }
-      });
-  }
+  // Ensure headers exist (Auto-migration)
+  ensureResidentHeaders(sheet);
   
   // Make sure headers exist
   const headersRange = sheet.getRange(1, 1, 1, sheet.getLastColumn() || 1);
